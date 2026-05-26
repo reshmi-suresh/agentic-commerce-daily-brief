@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(claude-api)",
+      "Skill(claude-api:*)",
+      "Bash(python -c \"import main; import prompts; import companies; print\\('All imports OK'\\)\")",
+      "Bash(python -c \"import main; print\\('MODEL =', main.MODEL\\); import inspect, ast; src = inspect.getsource\\(main.rank_articles\\); print\\('thinking in rank_articles:', 'thinking' in src\\)\")",
+      "WebFetch(domain:docs.anthropic.com)",
+      "Bash(python -c ' *)",
+      "Bash(python main.py)",
+      "Bash(git init *)",
+      "Bash(git add *)"
+    ]
+  }
+}
