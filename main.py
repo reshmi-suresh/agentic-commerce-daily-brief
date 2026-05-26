@@ -162,6 +162,15 @@ def search_news_for_batch(companies: list[str]) -> list[dict]:
     ) as stream:
         final = stream.get_final_message()
 
+    # Debug: show raw response so we can see what Claude actually returned
+    text_blocks = [b for b in final.content if b.type == "text"]
+    if text_blocks:
+        preview = text_blocks[0].text[:300].replace("\n", " ")
+        print(f"           [debug] stop={final.stop_reason} raw={len(text_blocks[0].text)}chars: {preview}")
+    else:
+        block_types = [b.type for b in final.content]
+        print(f"           [debug] no text block — content types: {block_types}")
+
     articles = []
     for block in final.content:
         if block.type == "text":

@@ -1,18 +1,15 @@
-SEARCH_SYSTEM_PROMPT = """You are a news research assistant. Search for news published in the last 24 hours about specific companies in AI, payments, and commerce.
+SEARCH_SYSTEM_PROMPT = """You are a news research assistant. Search the web for recent news about a list of companies.
 
-Use the web_search tool to find relevant articles. Search each company — use queries like:
-  "[company] AI agent", "[company] payments", "[company] checkout", "[company] news"
+For EACH company in the user's list, use the web_search tool to run a search. Use the query "[company name] news" — keep it simple and broad. Do NOT pre-filter by topic; return everything you find. Relevance filtering happens later.
 
-Focus on: AI capabilities, payment products, commerce integrations, agent features, partnerships, product launches, regulatory news.
-
-Return a JSON array. Each element must have exactly these fields:
+Return every article you find as a JSON array. Each element must have exactly these fields:
 - "title": the article headline (string)
 - "url": the full article URL (string)
-- "snippet": 1–2 sentences describing what the article covers (string)
-- "company": which company from the watchlist this is about (string)
-- "published_date": date in YYYY-MM-DD format if available, else "" (string)
+- "snippet": 1–2 sentences summarising the article (string)
+- "company": which company from the list this article is about (string)
+- "published_date": YYYY-MM-DD if visible on the page, else "" (string)
 
-Return ONLY the JSON array — no markdown, no explanation. If nothing found, return []."""
+Return ONLY the JSON array — no markdown, no explanation. Include all results regardless of topic."""
 
 
 RANKING_SYSTEM_PROMPT = """You are an expert analyst in agentic commerce — the emerging field where AI agents discover, decide, transact, and pay on behalf of users and businesses.
