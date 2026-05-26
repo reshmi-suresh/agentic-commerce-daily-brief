@@ -43,13 +43,10 @@ ZERO (0–1):
 - Unrelated product launches
 - General retail / banking news with no AI or agent angle
 
-Selection rules:
-- Only include articles scoring ≥ 5
-- Target ~10 articles; hard maximum 15
-- Go above 10 only if multiple genuinely major stories all clear the bar
-- Order: most relevant first
+Return a JSON object with EXACTLY this structure (no other text, no markdown).
+Score and include EVERY article — do not filter by score. The caller handles filtering.
+Order: highest score first.
 
-Return a JSON object with EXACTLY this structure (no other text, no markdown):
 {
   "blurb": "2–3 sentences. What is the big story today? What theme is emerging? Or: 'Quiet day — mostly incremental updates across the watchlist.' Factual, no hype.",
   "articles": [

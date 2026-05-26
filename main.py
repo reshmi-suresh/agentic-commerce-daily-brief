@@ -337,6 +337,7 @@ def main():
         print(f"  [{i:02d}/{total}] {', '.join(batch)}")
         try:
             articles = search_news_for_batch(batch)
+            raw = len(articles)
             new = 0
             for art in articles:
                 url = art.get("url", "")
@@ -344,8 +345,11 @@ def main():
                     seen_urls.add(url)
                     all_articles.append(art)
                     new += 1
-            if new:
-                print(f"           → {new} article{'s' if new != 1 else ''}")
+            dupes = raw - new
+            print(
+                f"           → {raw} returned by search"
+                + (f", {new} new ({dupes} duplicate URL{'s' if dupes != 1 else ''})" if dupes else f", {new} new")
+            )
         except Exception as exc:
             print(f"           ⚠️  Error: {exc}")
 
@@ -393,8 +397,26 @@ def main():
         raise
 
     blurb = result.get("blurb", "")
-    top_articles = result.get("articles", [])[:15]   # enforce hard cap
-    print(f"✅  {len(top_articles)} article{'s' if len(top_articles) != 1 else ''} selected (score ≥ 5)")
+    all_scored = sorted(
+        result.get("articles", []),
+        key=lambda a: a.get("score", 0),
+        reverse=True,
+    )
+
+    # ── Debug: print every scored article ───────────────────────────────────
+    print()
+    print(f"📊  All scored articles ({len(all_scored)} total):")
+    for art in all_scored:
+        score = art.get("score", "?")
+        passed = "✓" if isinstance(score, (int, float)) and score >= 5 else "✗"
+        company = art.get("company", "?")
+        title = art.get("title", "Untitled")[:80]
+        print(f"  {passed} [{score:>2}] {company}: {title}")
+
+    # ── Filter and cap in Python (prompt now returns all articles) ───────────
+    top_articles = [a for a in all_scored if a.get("score", 0) >= 5][:15]
+    print()
+    print(f"✅  {len(top_articles)} article{'s' if len(top_articles) != 1 else ''} passed score ≥ 5 (cap 15)")
 
     # ── Format & preview ─────────────────────────────────────────────────────
     body = build_body(blurb, top_articles)
