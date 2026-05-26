@@ -146,16 +146,16 @@ def search_news_for_batch(companies: list[str]) -> list[dict]:
 
     with client.messages.stream(
         model=MODEL,
-        max_tokens=4096,
+        max_tokens=8192,
         system=SEARCH_SYSTEM_PROMPT,
         tools=[{"type": "web_search_20250305", "name": "web_search"}],
         messages=[
             {
                 "role": "user",
                 "content": (
-                    f"Today is {today}. Search for news published in the last 24 hours about "
-                    f"each of these companies: {company_list}.\n\n"
-                    f"Return a JSON array of all relevant articles you find."
+                    f"Today is {today}. Companies to search: {company_list}.\n\n"
+                    f"Search each one, then output ONLY the JSON array. "
+                    f"Start with [ and end with ]. No other text."
                 ),
             }
         ],
@@ -213,12 +213,23 @@ def rank_articles(all_articles: list[dict]) -> dict:
         ],
     )
 
+    # Debug: print the full ranker response before parsing
+    for block in response.content:
+        if block.type == "text":
+            print(f"\n[debug ranker] stop_reason={response.stop_reason} length={len(block.text)}")
+            print("[debug ranker raw]")
+            print(block.text)
+            print("[debug ranker end]")
+            break
+
     result = {"blurb": "Nothing notable in agentic commerce today.", "articles": []}
     for block in response.content:
         if block.type == "text":
             parsed = extract_json(block.text)
             if isinstance(parsed, dict):
                 result = parsed
+            else:
+                print(f"[debug ranker] extract_json returned {type(parsed).__name__} — parse failed")
             break
 
     return result
