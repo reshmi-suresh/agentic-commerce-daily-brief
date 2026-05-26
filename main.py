@@ -213,23 +213,28 @@ def rank_articles(all_articles: list[dict]) -> dict:
         ],
     )
 
-    # Debug: print the full ranker response before parsing
-    for block in response.content:
-        if block.type == "text":
-            print(f"\n[debug ranker] stop_reason={response.stop_reason} length={len(block.text)}")
-            print("[debug ranker raw]")
-            print(block.text)
-            print("[debug ranker end]")
-            break
-
     result = {"blurb": "Nothing notable in agentic commerce today.", "articles": []}
     for block in response.content:
         if block.type == "text":
-            parsed = extract_json(block.text)
-            if isinstance(parsed, dict):
-                result = parsed
+            text = block.text
+            # Strip markdown fences
+            text = re.sub(r"```(?:json)?\s*", "", text)
+            text = text.replace("```", "")
+            # Find the outermost JSON object (dict), not array —
+            # extract_json tries [ first and would grab the articles array inside the dict
+            start = text.find("{")
+            end = text.rfind("}") + 1
+            if start != -1 and end > start:
+                try:
+                    parsed = json.loads(text[start:end])
+                    if isinstance(parsed, dict) and "articles" in parsed:
+                        result = parsed
+                    else:
+                        print(f"[debug ranker] unexpected shape: {list(parsed.keys()) if isinstance(parsed, dict) else type(parsed).__name__}")
+                except json.JSONDecodeError as exc:
+                    print(f"[debug ranker] JSONDecodeError: {exc}")
             else:
-                print(f"[debug ranker] extract_json returned {type(parsed).__name__} — parse failed")
+                print("[debug ranker] no JSON object found in response")
             break
 
     return result
