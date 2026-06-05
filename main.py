@@ -325,8 +325,15 @@ def build_subject() -> str:
     return f"Agentic Commerce Daily — {datetime.now().strftime('%a %d %b %Y')}"
 
 
-def build_body(blurb: str, articles: list[dict]) -> str:
-    lines = [blurb.strip(), ""]
+def md_bold_to_html(text: str) -> str:
+    """Convert **text** markers to <strong>text</strong>."""
+    return re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", text)
+
+
+def build_plain_body(blurb: str, articles: list[dict]) -> str:
+    # Strip any **bold** markers for plain text
+    plain_blurb = re.sub(r"\*\*(.+?)\*\*", r"\1", blurb.strip())
+    lines = [plain_blurb, ""]
 
     if articles:
         count = len(articles)
@@ -350,6 +357,58 @@ def build_body(blurb: str, articles: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def build_html_body(blurb: str, articles: list[dict]) -> str:
+    wrapper_open = (
+        '<div style="font-family: system-ui, -apple-system, sans-serif; '
+        'font-size: 14px; line-height: 1.6; max-width: 600px; margin: 0 auto;">'
+    )
+    parts = [wrapper_open]
+
+    # Render blurb line by line
+    section_headers = {"what's moving:", "psp implications:"}
+    for line in blurb.strip().splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        low = stripped.lower()
+        if any(low.startswith(h) for h in section_headers):
+            parts.append(f"<p><strong>{stripped}</strong></p>")
+        elif stripped.startswith("- "):
+            content = md_bold_to_html(stripped[2:])
+            parts.append(f'<p style="margin: 2px 0;">— {content}</p>')
+        else:
+            parts.append(f"<p>{md_bold_to_html(stripped)}</p>")
+
+    parts.append("<hr>")
+
+    if articles:
+        count = len(articles)
+        noun = "story" if count == 1 else "stories"
+        parts.append(
+            f"<p><strong>{count} {noun} from the last 48 h, ranked by relevance.</strong></p>"
+        )
+        for i, art in enumerate(articles, 1):
+            title = art.get("title", "Untitled")
+            url = art.get("url", "")
+            desc = art.get("description") or art.get("snippet", "")
+            parts.append(
+                f'<p><strong>{i}.</strong> '
+                f'<a href="{url}" style="text-decoration: underline; color: inherit;">{title}</a></p>'
+            )
+            if desc:
+                parts.append(
+                    f'<p style="margin: 2px 0 12px 16px; color: #444;">{desc}</p>'
+                )
+    else:
+        parts.append(
+            "<p>Nothing notable today — all sources fetched, "
+            "nothing cleared the relevance bar.</p>"
+        )
+
+    parts.append("</div>")
+    return "\n".join(parts)
+
+
 def print_email_preview(subject: str, body: str) -> None:
     divider = "─" * 60
     print(f"Subject : {subject}")
@@ -366,7 +425,7 @@ def print_email_preview(subject: str, body: str) -> None:
 # Step 4 — Send via Gmail SMTP
 # ---------------------------------------------------------------------------
 
-def send_email_smtp(subject: str, body: str) -> bool:
+def send_email_smtp(subject: str, plain_body: str, html_body: str) -> bool:
     gmail_user = os.environ.get("GMAIL_USER")
     gmail_password = os.environ.get("GMAIL_APP_PASSWORD")
 
@@ -374,12 +433,14 @@ def send_email_smtp(subject: str, body: str) -> bool:
         print("⚠️   GMAIL_USER or GMAIL_APP_PASSWORD not set — print-only mode, email not sent.")
         return False
 
-    msg = MIMEMultipart()
+    msg = MIMEMultipart("alternative")
     msg["From"] = gmail_user
     msg["To"] = TO_EMAIL
     msg["Cc"] = CC_EMAIL
     msg["Subject"] = subject
-    msg.attach(MIMEText(body, "plain"))
+    # Plain text first, HTML second — clients prefer the last part they can render
+    msg.attach(MIMEText(plain_body, "plain"))
+    msg.attach(MIMEText(html_body, "html"))
 
     recipients = [TO_EMAIL, CC_EMAIL]
 
@@ -439,16 +500,17 @@ def main():
 
     # ── Handle empty pipeline ────────────────────────────────────────────────
     if not fresh_articles:
-        body = (
+        plain_body = (
             "Nothing notable in agentic commerce today — "
             "all sources fetched, no new relevant articles found."
         )
+        html_body = build_html_body("", [])
         print()
-        print_email_preview(subject, body)
+        print_email_preview(subject, plain_body)
         if args.send:
             print()
             print("📤  Sending 'nothing notable' email via SMTP …")
-            if send_email_smtp(subject, body):
+            if send_email_smtp(subject, plain_body, html_body):
                 print("✅  Sent.")
         else:
             print()
@@ -487,15 +549,16 @@ def main():
     print(f"✅  {len(top_articles)} article{'s' if len(top_articles) != 1 else ''} passed score ≥ 5 (cap 15)")
 
     # ── Format & preview ─────────────────────────────────────────────────────
-    body = build_body(blurb, top_articles)
+    plain_body = build_plain_body(blurb, top_articles)
+    html_body = build_html_body(blurb, top_articles)
     print()
-    print_email_preview(subject, body)
+    print_email_preview(subject, plain_body)
 
     # ── Send (or dry-run) ────────────────────────────────────────────────────
     if args.send:
         print()
         print("📤  Sending via Gmail SMTP …")
-        sent = send_email_smtp(subject, body)
+        sent = send_email_smtp(subject, plain_body, html_body)
         if sent:
             sent_urls = record_sent_urls(sent_urls, top_articles)
             save_sent_urls(sent_urls)
