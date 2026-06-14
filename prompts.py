@@ -8,6 +8,11 @@ HIGH (8–10):
 - New agent checkout / payment products from card networks, banks, or platforms
 - Partnerships between LLM providers and commerce / payments companies
 - Identity, trust, or fraud frameworks specifically for AI agent transactions
+- Metered/usage-based billing infrastructure and protocols
+- Micropayment rails and protocols
+- Programmatic or machine-initiated payments
+- B2B API-based payment flows
+- Billing platforms acquired by or partnering with payments companies (e.g. Orb, Stripe Billing, Lago)
 
 MEDIUM (5–7):
 - Merchant tooling to be "agent-discoverable" (structured data, APIs, agent-friendly UX)

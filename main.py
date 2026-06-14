@@ -238,18 +238,36 @@ def fetch_all_articles(companies: list[str]) -> list[dict]:
     # Per-company feeds
     print("  Fetching per-company RSS feeds …")
     for company in companies:
-        q_google = re.sub(r"\s+", "+", company) + "+AI+payments+commerce"
-        q_bing = re.sub(r"\s+", "+", company) + "+agentic+commerce"
-        google_url = f"https://news.google.com/rss/search?q={q_google}&hl=en-GB&gl=GB&ceid=GB:en"
-        bing_url = f"https://www.bing.com/news/search?q={q_bing}&format=rss"
-
+        slug = re.sub(r"\s+", "+", company)
+        queries = [
+            (f"https://news.google.com/rss/search?q={slug}+AI+payments+commerce&hl=en-GB&gl=GB&ceid=GB:en", company),
+            (f"https://www.bing.com/news/search?q={slug}+agentic+commerce&format=rss", company),
+            (f"https://news.google.com/rss/search?q={slug}+metered+billing+OR+micropayments+OR+programmatic+payments+OR+machine+payments&hl=en-GB&gl=GB&ceid=GB:en", company),
+        ]
         before = len(articles)
-        for entry in fetch_rss_feed(google_url):
-            add_entry(entry, company)
-        for entry in fetch_rss_feed(bing_url):
-            add_entry(entry, company)
+        for url, co in queries:
+            for entry in fetch_rss_feed(url):
+                add_entry(entry, co)
         gained = len(articles) - before
         print(f"    {company}: +{gained}")
+
+    # Standalone topic feeds (not per-company)
+    print("  Fetching topic RSS feeds …")
+    topic_queries = [
+        '"metered billing" payments',
+        '"usage-based billing" fintech',
+        '"micropayments" AI agents',
+        '"programmatic payments"',
+        '"machine payments"',
+    ]
+    for q in topic_queries:
+        encoded = re.sub(r"\s+", "+", q).replace('"', "%22")
+        url = f"https://news.google.com/rss/search?q={encoded}&hl=en-GB&gl=GB&ceid=GB:en"
+        before = len(articles)
+        for entry in fetch_rss_feed(url):
+            add_entry(entry, "")
+        gained = len(articles) - before
+        print(f"    {q}: +{gained}")
 
     # Specialist feeds
     print("  Fetching specialist feeds …")
